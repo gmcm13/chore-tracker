@@ -63,10 +63,10 @@ const saveState = (completions, customChores) => {
   } catch (e) {}
 };
 
-const TOILET_ROLL_SANDY = { id: 900, name: "Refill toilet rolls", emoji: "🧻", isShared: true };
-const TOILET_ROLL_ROSE = { id: 901, name: "Refill toilet rolls", emoji: "🧻", isShared: true };
-const BINS_SANDY = { id: 902, name: "Empty the bins", emoji: "🗑️", isShared: true };
-const BINS_ROSE = { id: 903, name: "Empty the bins", emoji: "🗑️", isShared: true };
+const TOILET_ROLL_SANDY = { id: 900, name: "Refill toilet rolls", emoji: "🧻", value: 0.40, isShared: true };
+const TOILET_ROLL_ROSE = { id: 901, name: "Refill toilet rolls", emoji: "🧻", value: 0.40, isShared: true };
+const BINS_SANDY = { id: 902, name: "Empty the bins", emoji: "🗑️", value: 0.40, isShared: true };
+const BINS_ROSE = { id: 903, name: "Empty the bins", emoji: "🗑️", value: 0.40, isShared: true };
 
 const BASE_CHORES = {
   sandy: [
@@ -178,7 +178,12 @@ function ChoreTracker() {
 
   const currentStreak = calcStreak(myCompletions, chores);
 
-  const calcMoney = (comps) => Object.values(comps).filter(Boolean).length * PRICE_PER_CHORE;
+  const calcMoney = (comps) => chores.reduce((sum, c) => {
+    const price = c.value !== undefined ? c.value : PRICE_PER_CHORE;
+    const days = c.isShared ? [0] : [0,1,2,3,4,5,6];
+    const done = days.filter(d => comps[`${c.id}-${d}`]).length;
+    return sum + done * price;
+  }, 0);
 
   const calcStreakBonus = (comps, choreList) => calcStreak(comps, choreList) === 7 ? STREAK_BONUS : 0;
 
@@ -188,10 +193,13 @@ function ChoreTracker() {
 
   const totalDone = Object.values(myCompletions).filter(Boolean).length;
   const totalPossible = chores.reduce((sum, c) => sum + (c.isShared ? 1 : 7), 0);
-  const maxMoney = totalPossible * PRICE_PER_CHORE + (profile.hasStreak ? STREAK_BONUS : 0);
+  const maxMoney = chores.reduce((sum, c) => {
+    const price = c.value !== undefined ? c.value : PRICE_PER_CHORE;
+    return sum + price * (c.isShared ? 1 : 7);
+  }, 0) + (profile.hasStreak ? STREAK_BONUS : 0);
 
   const getDayDone = (dayIndex) => chores.filter(c => myCompletions[`${c.id}-${dayIndex}`]).length;
-  const getDayMoney = (dayIndex) => getDayDone(dayIndex) * PRICE_PER_CHORE;
+  const getDayMoney = (dayIndex) => chores.filter(c => myCompletions[`${c.id}-${dayIndex}`]).reduce((sum, c) => sum + (c.value !== undefined ? c.value : PRICE_PER_CHORE), 0);
   const getChoreCompletedDays = (choreId) => {
     let c = 0; for (let d = 0; d < 7; d++) { if (myCompletions[`${choreId}-${d}`]) c++; } return c;
   };
@@ -457,12 +465,15 @@ function ChoreTracker() {
                     <div style={{ flex: 1 }}>
                       <div style={{ lineHeight: 1.2, display: "flex", alignItems: "center", gap: 6 }}>
                         {chore.name}
+                        <span style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8" }}>
+                          {((chore.value !== undefined ? chore.value : PRICE_PER_CHORE) * 100).toFixed(0)}p
+                        </span>
                         {chore.isShared && (
                           <span style={{ fontSize: 8, fontWeight: 800, color: "#fbbf24", background: "rgba(251,191,36,0.15)", padding: "2px 6px", borderRadius: 6, textTransform: "uppercase" }}>my turn</span>
                         )}
                       </div>
                       <div style={{ fontSize: 10, color: "#64748b", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                        {daysCompleted}/{maxDays} · £{(daysCompleted * PRICE_PER_CHORE).toFixed(2)}
+                        {daysCompleted}/{maxDays} · £{(daysCompleted * (chore.value !== undefined ? chore.value : PRICE_PER_CHORE)).toFixed(2)}
                         {isCustom && (
                           <button onClick={() => removeChore(chore.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#475569", fontSize: 11, padding: "0 3px" }}
                             onMouseEnter={e => e.target.style.color = "#ef4444"}
